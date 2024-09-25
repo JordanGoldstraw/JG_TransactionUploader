@@ -1,0 +1,51 @@
+﻿@page
+@model FileUploaderModel
+@{
+    ViewData["Title"] = "File Uploader";
+}
+<div class="text-center">
+    <div id="tabs">
+        <ul class="tab-list">
+            <li class="tab-item" onclick="showTab('tab1')">File Uploader</li>
+        </ul>
+        <div id="tab1" class="tab-content">
+            <h2>File Uploader</h2>
+            <input type="file" id="fileInput" accept=".csv, .xml" />
+            <button onclick="uploadFile()">Upload</button>
+            <p id="fileInfo"></p>
+        </div>
+    </div>
+</div>
+<script>
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+        });
+        document.getElementById(tabId).style.display = 'block';
+    }
+
+    function uploadFile() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        const fileInfo = document.getElementById('fileInfo');
+
+        if (!file) {
+            fileInfo.textContent = 'No file selected.';
+            return;
+        }
+
+        if (file.size > 1048576) {
+            fileInfo.textContent = 'File size exceeds 1MB.';
+            return;
+        }
+
+        if (!['text/csv', 'application/xml'].includes(file.type)) {
+            fileInfo.textContent = 'Invalid file type. Only CSV and XML are allowed.';
+            return;
+        }
+
+        fileInfo.textContent = 'File uploaded successfully.';
+    }
+
+    showTab('tab1');
+</script>

@@ -15,3 +15,6 @@ JG_TransactionUploader/.vs/JG_TransactionUploader/FileContentIndex/77f93f79-fabc
 JG_TransactionUploader/.vs/JG_TransactionUploader/v17/DocumentLayout.json
 JG_TransactionUploader/.vs/JG_TransactionUploader/v17/DocumentLayout.backup.json
 JG_TransactionUploader/.vs/JG_TransactionUploader/v17/.suo
+/JG_TransactionUploader/Database/bin
+/JG_TransactionUploader/Database/obj
+*.vsidx
