@@ -1,0 +1,27 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JG File Uploader</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="login-screen">
+        <h1>Login</h1>
+        <button onclick="showTabs()">Login</button>
+    </div>
+    <div id="tabs" style="display: none;">
+        <ul class="tab-list">
+            <li class="tab-item" onclick="showTab('tab1')">File Uploader</li>
+        </ul>
+        <div id="tab1" class="tab-content">
+            <h2>File Uploader</h2>
+            <input type="file" id="fileInput" accept=".csv, .xml" />
+            <button onclick="uploadFile()">Upload</button>
+            <p id="fileInfo"></p>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>
