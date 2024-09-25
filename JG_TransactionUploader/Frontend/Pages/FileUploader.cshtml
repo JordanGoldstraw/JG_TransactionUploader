@@ -1,5 +1,5 @@
 ﻿@page
-@model FileUploaderModel
+@model Frontend.Pages.FileUploaderModel
 @{
     ViewData["Title"] = "File Uploader";
 }
@@ -10,9 +10,11 @@
         </ul>
         <div id="tab1" class="tab-content">
             <h2>File Uploader</h2>
-            <input type="file" id="fileInput" accept=".csv, .xml" />
-            <button onclick="uploadFile()">Upload</button>
-            <p id="fileInfo"></p>
+            <form method="post" enctype="multipart/form-data">
+                <input type="file" id="fileInput" name="file" accept=".csv, .xml" />
+                <button type="submit">Upload</button>
+            </form>
+            <p id="fileInfo">@Model.FileInfo</p>
         </div>
     </div>
 </div>
@@ -22,29 +24,6 @@
             tab.style.display = 'none';
         });
         document.getElementById(tabId).style.display = 'block';
-    }
-
-    function uploadFile() {
-        const fileInput = document.getElementById('fileInput');
-        const file = fileInput.files[0];
-        const fileInfo = document.getElementById('fileInfo');
-
-        if (!file) {
-            fileInfo.textContent = 'No file selected.';
-            return;
-        }
-
-        if (file.size > 1048576) {
-            fileInfo.textContent = 'File size exceeds 1MB.';
-            return;
-        }
-
-        if (!['text/csv', 'application/xml'].includes(file.type)) {
-            fileInfo.textContent = 'Invalid file type. Only CSV and XML are allowed.';
-            return;
-        }
-
-        fileInfo.textContent = 'File uploaded successfully.';
     }
 
     showTab('tab1');
