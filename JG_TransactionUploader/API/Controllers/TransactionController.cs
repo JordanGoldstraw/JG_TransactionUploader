@@ -1,5 +1,7 @@
 ﻿using API.Context;
+using API.Interfaces;
 using API.Models;
+using API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -13,10 +15,12 @@ namespace API.Controllers
     public class TransactionController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly ITransactionProcessor _transactionProcessor;
 
-        public TransactionController(AppDbContext context)
+        public TransactionController(AppDbContext context, ITransactionProcessor transactionProcessor)
         {
             _context = context;
+            _transactionProcessor = transactionProcessor;
         }
 
         [HttpPost]
@@ -27,8 +31,10 @@ namespace API.Controllers
                 return BadRequest("No transactions provided.");
             }
 
-            await _context.Transactions.AddRangeAsync(transactions);
-            await _context.SaveChangesAsync();
+            //await _context.Transactions.AddRangeAsync(transactions);
+            //await _context.SaveChangesAsync();
+
+            await _transactionProcessor.ProcessTransactionsAsync(transactions);
 
             return Ok("Transactions uploaded successfully.");
         }
