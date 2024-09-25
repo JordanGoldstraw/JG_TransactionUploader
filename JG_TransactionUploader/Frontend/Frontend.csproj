@@ -10,4 +10,8 @@
     <None Include="wwwroot\index.html" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+  </ItemGroup>
+
 </Project>

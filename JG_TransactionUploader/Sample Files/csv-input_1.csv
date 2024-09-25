@@ -1,0 +1,3 @@
+TransactionId,AccountNo,Amount,CurrencyCode,TransactionDate,Status
+"Invoice0000001","1234567812345678","1,000.00","USD","20/02/2019 12:33:16","Approved"
+"Invoice0000002","VMZ012345678","300.00","USD","21/02/2019 02:04:59","Failed"

@@ -7,6 +7,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Collections.Generic;
+using System.Xml.Linq;
+using CsvHelper;
+using CsvHelper.Configuration;
+using CsvHelper.TypeConversion;
+using Frontend.Mappers;
+
 namespace Frontend.Pages
 {
     public class FileUploaderModel : PageModel
@@ -19,9 +33,9 @@ namespace Frontend.Pages
         {
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
-            if (File == null)
+            if (file == null || file.Length == 0)
             {
                 FileInfo = "No file selected.";
                 return Page();
@@ -33,6 +47,8 @@ namespace Frontend.Pages
                 return Page();
             }
 
+            List<Transaction> transactions;
+
             if (!new[] { ".csv", ".xml" }.Contains(Path.GetExtension(File.FileName).ToLower()))
             {
                 FileInfo = "Invalid file type. Only CSV and XML are allowed.";
@@ -42,8 +58,15 @@ namespace Frontend.Pages
             if (Path.GetExtension(File.FileName).ToLower() == ".xml")
             {
                 // var transactions = await ParseXmlFileAsync(File);
-                var transactions = GetDummyTransactions();
+                // var transactions = GetDummyTransactions();
+                transactions = GetDummyTransactions();
 
+                await SendTransactionsToApiAsync(transactions);
+                FileInfo = "Transactions uploaded successfully.";
+            }
+            else if (Path.GetExtension(file.FileName).ToLower() == ".csv")
+            {
+                transactions = await ParseCsvFileAsync(file);
 
                 await SendTransactionsToApiAsync(transactions);
                 FileInfo = "Transactions uploaded successfully.";
@@ -51,6 +74,7 @@ namespace Frontend.Pages
             else
             {
                 FileInfo = "Only XML file handling is implemented.";
+                return Page();
             }
 
             return Page();
@@ -73,6 +97,21 @@ namespace Frontend.Pages
                         CurrencyCode = node.Element("CurrencyCode")?.Value,
                         Status = node.Element("Status")?.Value
                     }).ToList();
+            }
+
+            return transactions;
+        }
+
+        private async Task<List<Transaction>> ParseCsvFileAsync(IFormFile file)
+        {
+            var transactions = new List<Transaction>();
+
+            using (var stream = new StreamReader(file.OpenReadStream()))
+            using (var csv = new CsvReader(stream, CultureInfo.InvariantCulture))
+            {
+                csv.Context.RegisterClassMap<TransactionMapper>();
+                var records = csv.GetRecords<Transaction>();
+                transactions = records.ToList();
             }
 
             return transactions;
