@@ -18,6 +18,7 @@ using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
 using Frontend.Mappers;
 using System.Net.Http;
+using System.Text;
 
 namespace Frontend.Pages
 {
@@ -44,39 +45,37 @@ namespace Frontend.Pages
                 return Page();
             }
 
+            var extension = Path.GetExtension(file.FileName).ToLower();
             List<Transaction> transactions;
 
-            if (!new[] { ".csv", ".xml" }.Contains(Path.GetExtension(File.FileName).ToLower()))
+            switch (extension)
             {
-                FileInfo = "Invalid file type. Only CSV and XML are allowed.";
-                _logger.Info("Invalid file type. File: " + file.FileName);
+                case ".xml":
+                    transactions = await ParseXmlFileAsync(file);
+                    break;
+                case ".csv":
+                    transactions = await ParseCsvFileAsync(file);
+                    break;
+                default:
+                    FileInfo = "Only XML or CSV file handling is allowed.";
+                    return Page();
+            }
+
+            if (transactions == null || transactions.Count == 0)
+            {
+                FileInfo = "Failed to upload Transactions.";
                 return Page();
             }
 
-            if (Path.GetExtension(File.FileName).ToLower() == ".xml")
-            {
-                transactions = await ParseXmlFileAsync(File);
-                await SendTransactionsToApiAsync(transactions);
-                FileInfo = "Transactions uploaded successfully.";
-            }
-            else if (Path.GetExtension(file.FileName).ToLower() == ".csv")
-            {
-                transactions = await ParseCsvFileAsync(file);
-                await SendTransactionsToApiAsync(transactions);
-                FileInfo = "Transactions uploaded successfully.";
-            }
-            else
-            {
-                FileInfo = "Only XML or CSV file handling is implemented.";
-                return Page();
-            }
-
+            await SendTransactionsToApiAsync(transactions);
+            FileInfo = "Transactions uploaded successfully.";
             return Page();
         }
 
         private async Task<List<Transaction>> ParseXmlFileAsync(IFormFile file)
         {
             var transactions = new List<Transaction>();
+            var rejectedTransactions = new List<Transaction>();
 
             using (var stream = new StreamReader(file.OpenReadStream()))
             {
@@ -87,20 +86,25 @@ namespace Frontend.Pages
                         TransactionId = node.Element("TransactionId")?.Value,
                         TransactionDate = DateTime.Parse(node.Element("TransactionDate")?.Value),
                         AccountNo = node.Element("AccountNo")?.Value,
-                        Amount = decimal.Parse(node.Element("Amount")?.Value),
+                        Amount = decimal.TryParse(node.Element("Amount")?.Value, out var amount) ? amount : 0,
                         CurrencyCode = node.Element("CurrencyCode")?.Value,
                         Status = node.Element("Status")?.Value
                     }).ToList();
             }
 
-            if (transactions.Any(t => string.IsNullOrEmpty(t.TransactionId) ||
-                                      string.IsNullOrEmpty(t.AccountNo) ||
-                                      t.Amount == 0 ||
-                                      string.IsNullOrEmpty(t.CurrencyCode) ||
-                                      t.TransactionDate == default ||
-                                      string.IsNullOrEmpty(t.Status)))
+            rejectedTransactions = transactions.Where(t => string.IsNullOrEmpty(t.TransactionId) ||
+                                                           string.IsNullOrEmpty(t.AccountNo) ||
+                                                           t.Amount == 0 ||
+                                                           string.IsNullOrEmpty(t.CurrencyCode)).ToList();
+
+            if (rejectedTransactions.Any())
             {
-                FileInfo = "Invalid record found in XML file. The file has been rejected.";
+                _logger.Info("File is rejected: " + file.FileName + ". Rejected transactions below");
+                foreach (var transaction in rejectedTransactions)
+                {
+                    _logger.Info($"Rejected Transaction: {transaction.TransactionId}, {transaction.TransactionDate}, {transaction.AccountNo}, {transaction.Amount}, {transaction.CurrencyCode}, {transaction.Status}");
+                }
+                _logger.Info("End of rejected transactions.");
                 return null;
             }
 
@@ -110,27 +114,94 @@ namespace Frontend.Pages
         private async Task<List<Transaction>> ParseCsvFileAsync(IFormFile file)
         {
             var transactions = new List<Transaction>();
+            var rejectedTransactions = new List<Transaction>();
 
             using (var stream = new StreamReader(file.OpenReadStream()))
-            using (var csv = new CsvReader(stream, CultureInfo.InvariantCulture))
             {
-                csv.Context.RegisterClassMap<TransactionMapper>();
-                var records = csv.GetRecords<Transaction>();
-                transactions = records.ToList();
+                string headerLine = await stream.ReadLineAsync();
+                while (!stream.EndOfStream)
+                {
+                    var line = await stream.ReadLineAsync();
+                    var values = ParseCsvLine(line);
+
+                    if (values.Length != 6)
+                    {
+                        _logger.Info($"Rejected Line: {line} - Incorrect number of columns.");
+                        continue;
+                    }
+
+                    var transaction = new Transaction
+                    {
+                        TransactionId = values[0],
+                        AccountNo = values[1],
+                        Amount = decimal.TryParse(values[2], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var amount) ? amount : 0,
+                        CurrencyCode = values[3],
+                        TransactionDate = DateTime.TryParseExact(values[4], "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out var date) ? date : default,
+                        Status = values[5]
+                    };
+
+                    transactions.Add(transaction);
+                }
             }
 
-            if (transactions.Any(t => string.IsNullOrEmpty(t.TransactionId) ||
-                                      string.IsNullOrEmpty(t.AccountNo) ||
-                                      t.Amount == 0 ||
-                                      string.IsNullOrEmpty(t.CurrencyCode) ||
-                                      t.TransactionDate == default ||
-                                      string.IsNullOrEmpty(t.Status)))
+            rejectedTransactions = transactions.Where(t => string.IsNullOrEmpty(t.TransactionId) || t.TransactionId.Length > 50 ||
+                                                           string.IsNullOrEmpty(t.AccountNo) || t.AccountNo.Length > 30 ||
+                                                           t.Amount == 0 ||
+                                                           string.IsNullOrEmpty(t.CurrencyCode) || t.CurrencyCode.Length != 3 ||
+                                                           t.TransactionDate == default ||
+                                                           string.IsNullOrEmpty(t.Status) || !new[] { "Approved", "Failed", "Finished" }.Contains(t.Status)).ToList();
+
+            if (rejectedTransactions.Any())
             {
-                FileInfo = "Invalid record found in CSV file. The file has been rejected.";
+                foreach (var transaction in rejectedTransactions)
+                {
+                    _logger.Info($"Rejected Transaction: {transaction.TransactionId}, {transaction.TransactionDate}, {transaction.AccountNo}, {transaction.Amount}, {transaction.CurrencyCode}, {transaction.Status}");
+                }
                 return null;
             }
 
             return transactions;
+        }
+
+        private string[] ParseCsvLine(string line)
+        {
+            var values = new List<string>();
+            var current = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+
+                if (ch == '"' && !inQuotes)
+                {
+                    inQuotes = true;
+                }
+                else if (ch == '"' && inQuotes)
+                {
+                    if (i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        current.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else if (ch == ',' && !inQuotes)
+                {
+                    values.Add(current.ToString());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(ch);
+                }
+            }
+
+            values.Add(current.ToString());
+            return values.ToArray();
         }
 
         private async Task SendTransactionsToApiAsync(List<Transaction> transactions)
@@ -140,31 +211,6 @@ namespace Frontend.Pages
                 var response = await client.PostAsJsonAsync("http://localhost:5276/api/Transaction", transactions);
                 response.EnsureSuccessStatusCode();
             }
-        }
-
-        private List<Transaction> GetDummyTransactions()
-        {
-            return new List<Transaction>
-            {
-                new Transaction
-                {
-                    TransactionId = "Inv00001",
-                    TransactionDate = DateTime.Parse("2019-01-23T13:45:10"),
-                    AccountNo = "1234123412341234",
-                    Amount = 200.00m,
-                    CurrencyCode = "USD",
-                    Status = "Done"
-                },
-                new Transaction
-                {
-                    TransactionId = "Inv00002",
-                    TransactionDate = DateTime.Parse("2019-01-24T16:09:15"),
-                    AccountNo = "x12347890IS",
-                    Amount = 10000.00m,
-                    CurrencyCode = "EUR",
-                    Status = "Rejected"
-                }
-            };
-        }
+        }        
     }
 }

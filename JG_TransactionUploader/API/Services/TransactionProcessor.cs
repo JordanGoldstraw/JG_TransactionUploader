@@ -1,18 +1,17 @@
-﻿
-using API.Context;
+﻿using API.Context;
 using API.Interfaces;
 using API.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Data;
 using Microsoft.Data.SqlClient;
-using System.Threading.Tasks;
+using System.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace API.Services
 {
     public class TransactionProcessor : ITransactionProcessor
     {
         private readonly AppDbContext _context;
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
         public TransactionProcessor(AppDbContext context)
         {
@@ -23,31 +22,38 @@ namespace API.Services
         {
             foreach (var transaction in transactions)
             {
-                await SaveTransactionAsync(transaction);
+                try
+                {
+                    await SaveTransactionAsync(transaction);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to save transaction {transaction.TransactionId}: {ex.Message}");
+                }
             }
         }
 
         private async Task SaveTransactionAsync(Transaction transaction)
         {
-            var connection = _context.Database.GetDbConnection();
-            await using (connection)
+            await using var connection = _context.Database.GetDbConnection();
+            if (string.IsNullOrEmpty(connection.ConnectionString))
             {
-                await connection.OpenAsync();
-                await using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = "Transaction_Create";
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    command.Parameters.Add(new SqlParameter("@TransactionId", transaction.TransactionId));
-                    command.Parameters.Add(new SqlParameter("@TransactionDate", transaction.TransactionDate));
-                    command.Parameters.Add(new SqlParameter("@AccountNo", transaction.AccountNo));
-                    command.Parameters.Add(new SqlParameter("@Amount", transaction.Amount));
-                    command.Parameters.Add(new SqlParameter("@CurrencyCode", transaction.CurrencyCode));
-                    command.Parameters.Add(new SqlParameter("@Status", transaction.Status));
-
-                    await command.ExecuteNonQueryAsync();
-                }
+                connection.ConnectionString = _context.Database.GetConnectionString();
             }
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+
+            command.CommandText = "Transaction_Create";
+            command.CommandType = CommandType.StoredProcedure;
+
+            command.Parameters.Add(new SqlParameter("@TransactionId", transaction.TransactionId));
+            command.Parameters.Add(new SqlParameter("@TransactionDate", transaction.TransactionDate));
+            command.Parameters.Add(new SqlParameter("@AccountNo", transaction.AccountNo));
+            command.Parameters.Add(new SqlParameter("@Amount", transaction.Amount));
+            command.Parameters.Add(new SqlParameter("@CurrencyCode", transaction.CurrencyCode));
+            command.Parameters.Add(new SqlParameter("@Status", transaction.Status));
+
+            await command.ExecuteNonQueryAsync();
         }
     }
 }
