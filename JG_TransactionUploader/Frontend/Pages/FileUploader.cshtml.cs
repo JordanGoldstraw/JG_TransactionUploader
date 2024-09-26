@@ -13,12 +13,17 @@ namespace Frontend.Pages
     {
         [BindProperty]
         public IFormFile File { get; set; }
-        public string FileInfo { get; set; }
-        [BindProperty]
-        public string SelectedCurrency { get; set; }
-        public List<Transaction> Transactions { get; set; } = new List<Transaction>();
         [BindProperty]
         public List<SelectListItem> CurrencyOptions { get; set; }
+        [BindProperty]
+        public string SelectedCurrency { get; set; }
+        [BindProperty]
+        public DateTime? StartDate { get; set; }
+        [BindProperty]
+        public DateTime? EndDate { get; set; }
+
+        public string FileInfo { get; set; }
+        public List<Transaction> Transactions { get; set; } = new List<Transaction>();
 
         private NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -74,29 +79,53 @@ namespace Frontend.Pages
             return Page();
         }
 
-        public async Task<IActionResult> OnPostFilterTransactionsByCurrencyAsync()
+        public async Task<IActionResult> OnPostFilterTransactionsAsync()
         {
-            if (string.IsNullOrEmpty(SelectedCurrency))
+            using (var handler = new HttpClientHandler())
             {
-                return Page();
-            }
+                using (var client = new HttpClient(handler))
+                {
+                    var queryParams = new List<string>();
+                    if (!string.IsNullOrEmpty(SelectedCurrency))
+                    {
+                        queryParams.Add($"currency={SelectedCurrency}");
+                    }
+                    if (StartDate.HasValue)
+                    {
+                        queryParams.Add($"startDate={StartDate.Value:yyyy-MM-dd}");
+                    }
+                    if (EndDate.HasValue)
+                    {
+                        queryParams.Add($"endDate={EndDate.Value:yyyy-MM-dd}");
+                    }
 
-            using (var client = new HttpClient())
-            {
-                var response = await client.GetAsync($"http://localhost:5276/api/Transaction?currency={SelectedCurrency}");
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    Transactions = JsonConvert.DeserializeObject<List<Transaction>>(json);
-                }
-                else
-                {
-                    _logger.Error("Failed to retrieve transactions filtered by cirrency: " + response.ReasonPhrase);
+                    var queryString = string.Join("&", queryParams);
+                    var requestUrl = $"http://localhost:5276/api/Transaction?{queryString}";
+
+                    try
+                    {
+                        _logger.Info($"Request URL: {requestUrl}");
+                        var response = await client.GetAsync(requestUrl);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var json = await response.Content.ReadAsStringAsync();
+                            Transactions = JsonConvert.DeserializeObject<List<Transaction>>(json);
+                        }
+                        else
+                        {
+                            _logger.Error($"Error response: {response.StatusCode} - {response.ReasonPhrase}");
+                            FileInfo = $"Error response: {response.StatusCode} - {response.ReasonPhrase}";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"Exception: {ex.Message}");
+                    }
                 }
             }
 
             return Page();
-        }
+        }        
 
         private async Task<List<Transaction>> ParseXmlFileAsync(IFormFile file)
         {

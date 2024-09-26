@@ -19,11 +19,21 @@
         </div>
         <div id="tab2" class="tab-content">
             <h2>Transaction List</h2>
-            <form method="post" asp-page-handler="FilterTransactionsByCurrency">
-                <label for="currencyFilter">Currency:</label>
-                <select id="currencyFilter" name="SelectedCurrency" asp-for="SelectedCurrency" asp-items="Model.CurrencyOptions">
-                    <option value="">Select Currency</option>
-                </select>
+            <form method="post" asp-page-handler="FilterTransactions">
+                <div>
+                    <label for="currencyFilter">Currency:</label>
+                    <select id="currencyFilter" name="SelectedCurrency" asp-for="SelectedCurrency" asp-items="Model.CurrencyOptions">
+                        <option value="">Select Currency</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" name="StartDate" asp-for="StartDate" />
+                </div>
+                <div>
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate" name="EndDate" asp-for="EndDate" />
+                </div>
                 <button type="submit">Filter</button>
             </form>
             <ul id="transactionList">

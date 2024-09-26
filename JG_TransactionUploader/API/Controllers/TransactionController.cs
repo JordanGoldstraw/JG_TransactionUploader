@@ -3,6 +3,7 @@ using API.Interfaces;
 using API.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace API.Controllers
 {
@@ -25,7 +26,7 @@ namespace API.Controllers
             if (transactions == null || !transactions.Any())
             {
                 return BadRequest("No transactions provided.");
-            }            
+            }
 
             await _transactionProcessor.ProcessTransactionsAsync(transactions);
 
@@ -33,16 +34,47 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTransactionsByCurrency([FromQuery] string currency)
+        public async Task<IActionResult> GetTransactions([FromQuery] string currency = null, [FromQuery] string startDate = null, [FromQuery] string endDate = null)
         {
-            if (string.IsNullOrEmpty(currency))
+            DateTime? start = null;
+            DateTime? end = null;
+
+            if (!string.IsNullOrEmpty(startDate))
             {
-                return BadRequest("Currency is required.");
+                if (!DateTime.TryParseExact(startDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedStartDate))
+                {
+                    return BadRequest("Invalid start date format. Use yyyy-MM-dd.");
+                }
+                start = parsedStartDate;
             }
 
-            var transactions = await _context.Transactions
-                .Where(t => t.CurrencyCode == currency)
-                .ToListAsync();
+            if (!string.IsNullOrEmpty(endDate))
+            {
+                if (!DateTime.TryParseExact(endDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedEndDate))
+                {
+                    return BadRequest("Invalid end date format. Use yyyy-MM-dd.");
+                }
+                end = parsedEndDate;
+            }
+
+            var query = _context.Transactions.AsQueryable();
+
+            if (!string.IsNullOrEmpty(currency))
+            {
+                query = query.Where(t => t.CurrencyCode == currency);
+            }
+
+            if (start.HasValue)
+            {
+                query = query.Where(t => t.TransactionDate >= start.Value);
+            }
+
+            if (end.HasValue)
+            {
+                query = query.Where(t => t.TransactionDate <= end.Value);
+            }
+
+            var transactions = await query.ToListAsync();
 
             return Ok(transactions);
         }
