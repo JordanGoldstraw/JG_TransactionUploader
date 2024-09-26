@@ -18,3 +18,4 @@ JG_TransactionUploader/.vs/JG_TransactionUploader/v17/.suo
 /JG_TransactionUploader/Database/bin
 /JG_TransactionUploader/Database/obj
 *.vsidx
+/JG_TransactionUploader/Logs

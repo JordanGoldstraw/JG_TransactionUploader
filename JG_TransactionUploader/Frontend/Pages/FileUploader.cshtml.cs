@@ -12,14 +12,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Collections.Generic;
-using System.Xml.Linq;
 using CsvHelper;
 using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
 using Frontend.Mappers;
+using System.Net.Http;
 
 namespace Frontend.Pages
 {
@@ -29,9 +27,7 @@ namespace Frontend.Pages
         public IFormFile File { get; set; }
         public string FileInfo { get; set; }
 
-        public void OnGet()
-        {
-        }
+        private NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
@@ -44,6 +40,7 @@ namespace Frontend.Pages
             if (File.Length > 1048576)
             {
                 FileInfo = "File size exceeds 1MB.";
+                _logger.Info("File size exceeds the maximum limit of 1 MB. File: " + file.FileName);
                 return Page();
             }
 
@@ -52,28 +49,25 @@ namespace Frontend.Pages
             if (!new[] { ".csv", ".xml" }.Contains(Path.GetExtension(File.FileName).ToLower()))
             {
                 FileInfo = "Invalid file type. Only CSV and XML are allowed.";
+                _logger.Info("Invalid file type. File: " + file.FileName);
                 return Page();
             }
 
             if (Path.GetExtension(File.FileName).ToLower() == ".xml")
             {
-                // var transactions = await ParseXmlFileAsync(File);
-                // var transactions = GetDummyTransactions();
-                transactions = GetDummyTransactions();
-
+                transactions = await ParseXmlFileAsync(File);
                 await SendTransactionsToApiAsync(transactions);
                 FileInfo = "Transactions uploaded successfully.";
             }
             else if (Path.GetExtension(file.FileName).ToLower() == ".csv")
             {
                 transactions = await ParseCsvFileAsync(file);
-
                 await SendTransactionsToApiAsync(transactions);
                 FileInfo = "Transactions uploaded successfully.";
             }
             else
             {
-                FileInfo = "Only XML file handling is implemented.";
+                FileInfo = "Only XML or CSV file handling is implemented.";
                 return Page();
             }
 
@@ -99,6 +93,17 @@ namespace Frontend.Pages
                     }).ToList();
             }
 
+            if (transactions.Any(t => string.IsNullOrEmpty(t.TransactionId) ||
+                                      string.IsNullOrEmpty(t.AccountNo) ||
+                                      t.Amount == 0 ||
+                                      string.IsNullOrEmpty(t.CurrencyCode) ||
+                                      t.TransactionDate == default ||
+                                      string.IsNullOrEmpty(t.Status)))
+            {
+                FileInfo = "Invalid record found in XML file. The file has been rejected.";
+                return null;
+            }
+
             return transactions;
         }
 
@@ -114,6 +119,17 @@ namespace Frontend.Pages
                 transactions = records.ToList();
             }
 
+            if (transactions.Any(t => string.IsNullOrEmpty(t.TransactionId) ||
+                                      string.IsNullOrEmpty(t.AccountNo) ||
+                                      t.Amount == 0 ||
+                                      string.IsNullOrEmpty(t.CurrencyCode) ||
+                                      t.TransactionDate == default ||
+                                      string.IsNullOrEmpty(t.Status)))
+            {
+                FileInfo = "Invalid record found in CSV file. The file has been rejected.";
+                return null;
+            }
+
             return transactions;
         }
 
@@ -121,7 +137,6 @@ namespace Frontend.Pages
         {
             using (var client = new HttpClient())
             {
-                // var response = await client.PostAsJsonAsync("/api/Transaction", transactions);
                 var response = await client.PostAsJsonAsync("http://localhost:5276/api/Transaction", transactions);
                 response.EnsureSuccessStatusCode();
             }
@@ -152,15 +167,4 @@ namespace Frontend.Pages
             };
         }
     }
-
-
-    //public class Transaction
-    //{
-    //    public string TransactionId { get; set; }
-    //    public DateTime TransactionDate { get; set; }
-    //    public string AccountNo { get; set; }
-    //    public decimal Amount { get; set; }
-    //    public string CurrencyCode { get; set; }
-    //    public string Status { get; set; }
-    //}
 }
