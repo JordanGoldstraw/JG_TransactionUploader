@@ -9,17 +9,17 @@
         background-color: #f8f9fa;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
     .container {
         margin-top: 50px;
+        margin-bottom: 50px;
+        overflow-y: auto;
+        flex: 1;
     }
-
     .tab-list {
         display: flex;
         justify-content: center;
         margin-bottom: 20px;
     }
-
     .tab-item {
         margin: 0 10px;
         padding: 10px 20px;
@@ -28,27 +28,21 @@
         background-color: #007bff;
         color: #fff;
     }
-
-        .tab-item:hover {
-            background-color: #0056b3;
-        }
-
+    .tab-item:hover {
+        background-color: #0056b3;
+    }
     .tab-content {
         display: none;
     }
-
-        .tab-content.active {
-            display: block;
-        }
-
+    .tab-content.active {
+        display: block;
+    }
     .form-group {
         margin-bottom: 20px;
     }
-
     .form-control {
         border-radius: 5px;
     }
-
     .btn-primary {
         width: 100%;
         padding: 10px;
@@ -59,23 +53,30 @@
         color: #fff;
         cursor: pointer;
     }
-
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-
-    .transaction-list {
-        list-style-type: none;
-        padding: 0;
+    .btn-primary:hover {
+        background-color: #0056b3;
     }
-
-        .transaction-list li {
-            background-color: #fff;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
+    .transaction-table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: collapse;
+    }
+    .transaction-table th, .transaction-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+    .transaction-table th {
+        background-color: #007bff;
+        color: white;
+    }
+    .footer {
+        background-color: #f8f9fa;
+        padding: 10px 0;
+        text-align: center;
+        position: fixed;
+        width: 100%;
+        bottom: 0;
+    }
 </style>
 <div class="container">
     <div id="tabs">
@@ -90,8 +91,10 @@
                     <input type="file" id="fileInput" name="file" accept=".csv, .xml" class="form-control" />
                 </div>
                 <button type="submit" class="btn btn-primary">Upload</button>
+                <div style="height:100px"></div>
             </form>
             <p id="fileInfo">@Model.FileInfo</p>
+            <div style="height:100px"></div>
         </div>
         <div id="tab2" class="tab-content">
             <h2>Transaction List</h2>
@@ -119,17 +122,34 @@
                         <option value="D">Done/Finished (D)</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary mb-2">Filter</button>
+                <div class="form-group mb-2 ml-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                </div>
             </form>
-            <ul id="transactionList" class="transaction-list">
-                @foreach (var transaction in Model.Transactions)
-
-                {
-                    <li>ID: @transaction.TransactionId, Payment: @transaction.Payment, Status: @transaction.MappedStatus</li>
-                }
-            </ul>
+            <table class="transaction-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var transaction in Model.Transactions)
+                    {
+                        <tr>
+                            <td>@transaction.TransactionId</td>
+                            <td>@transaction.Payment</td>
+                            <td>@transaction.MappedStatus</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
+<div class="footer">
+    <p>Footer Content</p>
 </div>
 <script>
     function showTab(tabId) {
@@ -145,4 +165,3 @@
         showTab(activeTab);
     });
 </script>
-
