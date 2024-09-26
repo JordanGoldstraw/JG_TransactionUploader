@@ -34,7 +34,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTransactions([FromQuery] string currency = null, [FromQuery] string startDate = null, [FromQuery] string endDate = null)
+        public async Task<IActionResult> GetTransactions([FromQuery] string currency = null, [FromQuery] string startDate = null, [FromQuery] string endDate = null, [FromQuery] string status = null)
         {
             DateTime? start = null;
             DateTime? end = null;
@@ -72,6 +72,24 @@ namespace API.Controllers
             if (end.HasValue)
             {
                 query = query.Where(t => t.TransactionDate <= end.Value);
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                switch (status)
+                {
+                    case "A":
+                        query = query.Where(t => t.Status == "Approved");
+                        break;
+                    case "R":
+                        query = query.Where(t => t.Status == "Failed" || t.Status == "Rejected");
+                        break;
+                    case "D":
+                        query = query.Where(t => t.Status == "Finished" || t.Status == "Done");
+                        break;
+                    default:
+                        return BadRequest("Invalid status value. Use A, R, or D.");
+                }
             }
 
             var transactions = await query.ToListAsync();

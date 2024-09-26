@@ -21,6 +21,8 @@ namespace Frontend.Pages
         public DateTime? StartDate { get; set; }
         [BindProperty]
         public DateTime? EndDate { get; set; }
+        [BindProperty]
+        public string SelectedStatus { get; set; }
 
         public string FileInfo { get; set; }
         public List<Transaction> Transactions { get; set; } = new List<Transaction>();
@@ -33,7 +35,8 @@ namespace Frontend.Pages
             {
                 new SelectListItem { Value = "USD", Text = "USD" },
                 new SelectListItem { Value = "EUR", Text = "EUR" },
-                new SelectListItem { Value = "GBP", Text = "GBP" }
+                new SelectListItem { Value = "GBP", Text = "GBP" },
+                new SelectListItem { Value = "SGD", Text = "SGD" },
             };
         }
 
@@ -97,6 +100,10 @@ namespace Frontend.Pages
                     if (EndDate.HasValue)
                     {
                         queryParams.Add($"endDate={EndDate.Value:yyyy-MM-dd}");
+                    }
+                    if (!string.IsNullOrEmpty(SelectedStatus))
+                    {
+                        queryParams.Add($"status={SelectedStatus}");
                     }
 
                     var queryString = string.Join("&", queryParams);

@@ -7,7 +7,7 @@
     <div id="tabs">
         <ul class="tab-list">
             <li class="tab-item" onclick="showTab('tab1')">File Uploader</li>
-            <li class="tab-item" onclick="showTab('tab2')">File List</li>
+            <li class="tab-item" onclick="showTab('tab2')">Transaction List</li>
         </ul>
         <div id="tab1" class="tab-content">
             <h2>File Uploader</h2>
@@ -33,6 +33,15 @@
                 <div>
                     <label for="endDate">End Date:</label>
                     <input type="date" id="endDate" name="EndDate" asp-for="EndDate" />
+                </div>
+                <div>
+                    <label for="statusFilter">Status:</label>
+                    <select id="statusFilter" name="SelectedStatus" asp-for="SelectedStatus">
+                        <option value="">Select Status</option>
+                        <option value="A">Approved (A)</option>
+                        <option value="R">Rejected/Failed (R)</option>
+                        <option value="D">Done/Finished (D)</option>
+                    </select>
                 </div>
                 <button type="submit">Filter</button>
             </form>
