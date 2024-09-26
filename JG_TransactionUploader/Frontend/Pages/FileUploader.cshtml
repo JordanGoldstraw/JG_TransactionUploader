@@ -7,6 +7,7 @@
     <div id="tabs">
         <ul class="tab-list">
             <li class="tab-item" onclick="showTab('tab1')">File Uploader</li>
+            <li class="tab-item" onclick="showTab('tab2')">File List</li>
         </ul>
         <div id="tab1" class="tab-content">
             <h2>File Uploader</h2>
@@ -15,6 +16,22 @@
                 <button type="submit">Upload</button>
             </form>
             <p id="fileInfo">@Model.FileInfo</p>
+        </div>
+        <div id="tab2" class="tab-content">
+            <h2>Transaction List</h2>
+            <form method="post" asp-page-handler="FilterTransactionsByCurrency">
+                <label for="currencyFilter">Currency:</label>
+                <select id="currencyFilter" name="SelectedCurrency" asp-for="SelectedCurrency" asp-items="Model.CurrencyOptions">
+                    <option value="">Select Currency</option>
+                </select>
+                <button type="submit">Filter</button>
+            </form>
+            <ul id="transactionList">
+                @foreach (var transaction in Model.Transactions)
+                {
+                    <li>ID: @transaction.TransactionId, Date: @transaction.TransactionDate, Account: @transaction.AccountNo, Amount: @transaction.Amount, Currency: @transaction.CurrencyCode, Status: @transaction.Status</li>
+                }
+            </ul>
         </div>
     </div>
 </div>

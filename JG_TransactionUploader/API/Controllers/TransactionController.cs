@@ -1,12 +1,8 @@
 ﻿using API.Context;
 using API.Interfaces;
 using API.Models;
-using API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace API.Controllers
 {
@@ -29,14 +25,26 @@ namespace API.Controllers
             if (transactions == null || !transactions.Any())
             {
                 return BadRequest("No transactions provided.");
-            }
-
-            //await _context.Transactions.AddRangeAsync(transactions);
-            //await _context.SaveChangesAsync();
+            }            
 
             await _transactionProcessor.ProcessTransactionsAsync(transactions);
 
             return Ok("Transactions uploaded successfully.");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetTransactionsByCurrency([FromQuery] string currency)
+        {
+            if (string.IsNullOrEmpty(currency))
+            {
+                return BadRequest("Currency is required.");
+            }
+
+            var transactions = await _context.Transactions
+                .Where(t => t.CurrencyCode == currency)
+                .ToListAsync();
+
+            return Ok(transactions);
         }
     }
 }

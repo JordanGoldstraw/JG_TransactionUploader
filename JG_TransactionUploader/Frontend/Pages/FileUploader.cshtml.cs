@@ -1,24 +1,11 @@
 using Frontend.Models;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
-using CsvHelper;
-using CsvHelper.Configuration;
-using CsvHelper.TypeConversion;
-using Frontend.Mappers;
-using System.Net.Http;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Newtonsoft.Json;
 using System.Text;
+using System.Xml;
 
 namespace Frontend.Pages
 {
@@ -27,8 +14,23 @@ namespace Frontend.Pages
         [BindProperty]
         public IFormFile File { get; set; }
         public string FileInfo { get; set; }
+        [BindProperty]
+        public string SelectedCurrency { get; set; }
+        public List<Transaction> Transactions { get; set; } = new List<Transaction>();
+        [BindProperty]
+        public List<SelectListItem> CurrencyOptions { get; set; }
 
         private NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
+
+        public async Task OnGetAsync()
+        {
+            CurrencyOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "USD", Text = "USD" },
+                new SelectListItem { Value = "EUR", Text = "EUR" },
+                new SelectListItem { Value = "GBP", Text = "GBP" }
+            };
+        }
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
@@ -57,7 +59,7 @@ namespace Frontend.Pages
                     transactions = await ParseCsvFileAsync(file);
                     break;
                 default:
-                    FileInfo = "Only XML or CSV file handling is allowed.";
+                    FileInfo = "Unknown format";
                     return Page();
             }
 
@@ -72,39 +74,100 @@ namespace Frontend.Pages
             return Page();
         }
 
+        public async Task<IActionResult> OnPostFilterTransactionsByCurrencyAsync()
+        {
+            if (string.IsNullOrEmpty(SelectedCurrency))
+            {
+                return Page();
+            }
+
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync($"http://localhost:5276/api/Transaction?currency={SelectedCurrency}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    Transactions = JsonConvert.DeserializeObject<List<Transaction>>(json);
+                }
+                else
+                {
+                    _logger.Error("Failed to retrieve transactions filtered by cirrency: " + response.ReasonPhrase);
+                }
+            }
+
+            return Page();
+        }
+
         private async Task<List<Transaction>> ParseXmlFileAsync(IFormFile file)
         {
             var transactions = new List<Transaction>();
             var rejectedTransactions = new List<Transaction>();
 
-            using (var stream = new StreamReader(file.OpenReadStream()))
+            using (var stream = file.OpenReadStream())
             {
-                var xmlDoc = XDocument.Load(stream);
-                transactions = xmlDoc.Descendants("Transaction")
-                    .Select(node => new Transaction
-                    {
-                        TransactionId = node.Element("TransactionId")?.Value,
-                        TransactionDate = DateTime.Parse(node.Element("TransactionDate")?.Value),
-                        AccountNo = node.Element("AccountNo")?.Value,
-                        Amount = decimal.TryParse(node.Element("Amount")?.Value, out var amount) ? amount : 0,
-                        CurrencyCode = node.Element("CurrencyCode")?.Value,
-                        Status = node.Element("Status")?.Value
-                    }).ToList();
-            }
+                var xmlDoc = new XmlDocument();
+                xmlDoc.Load(stream);
 
-            rejectedTransactions = transactions.Where(t => string.IsNullOrEmpty(t.TransactionId) ||
-                                                           string.IsNullOrEmpty(t.AccountNo) ||
-                                                           t.Amount == 0 ||
-                                                           string.IsNullOrEmpty(t.CurrencyCode)).ToList();
+                var transactionNodes = xmlDoc.SelectNodes("//Transaction");
+
+                foreach (XmlNode transactionNode in transactionNodes)
+                {
+                    try
+                    {
+                        var transactionId = transactionNode.Attributes["id"]?.Value;
+                        var transactionDateStr = transactionNode.SelectSingleNode("TransactionDate")?.InnerText;
+                        var accountNo = transactionNode.SelectSingleNode("PaymentDetails/AccountNo")?.InnerText;
+                        var amountStr = transactionNode.SelectSingleNode("PaymentDetails/Amount")?.InnerText;
+                        var currencyCode = transactionNode.SelectSingleNode("PaymentDetails/CurrencyCode")?.InnerText;
+                        var status = transactionNode.SelectSingleNode("Status")?.InnerText;
+
+                        DateTime transactionDate = default;
+                        decimal amount = default;
+                        if (string.IsNullOrEmpty(transactionId) || transactionId.Length > 50 ||
+                            string.IsNullOrEmpty(transactionDateStr) || !DateTime.TryParseExact(transactionDateStr, "yyyy-MM-ddTHH:mm:ss", null, System.Globalization.DateTimeStyles.None, out transactionDate) ||
+                            string.IsNullOrEmpty(accountNo) || accountNo.Length > 30 ||
+                            string.IsNullOrEmpty(amountStr) || !decimal.TryParse(amountStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out amount) ||
+                            string.IsNullOrEmpty(currencyCode) || currencyCode.Length != 3 ||
+                            string.IsNullOrEmpty(status) || !new[] { "Approved", "Rejected", "Done" }.Contains(status))
+                        {
+                            rejectedTransactions.Add(new Transaction
+                            {
+                                TransactionId = transactionId,
+                                TransactionDate = transactionDate,
+                                AccountNo = accountNo,
+                                Amount = amount,
+                                CurrencyCode = currencyCode,
+                                Status = status
+                            });
+                            continue;
+                        }
+
+                        var transaction = new Transaction
+                        {
+                            TransactionId = transactionId,
+                            TransactionDate = transactionDate,
+                            AccountNo = accountNo,
+                            Amount = amount,
+                            CurrencyCode = currencyCode,
+                            Status = status
+                        };
+
+                        transactions.Add(transaction);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Error occurred processing XML file " + file.FileName + ": " + ex.Message);
+                        continue;
+                    }
+                }
+            }
 
             if (rejectedTransactions.Any())
             {
-                _logger.Info("File is rejected: " + file.FileName + ". Rejected transactions below");
                 foreach (var transaction in rejectedTransactions)
                 {
                     _logger.Info($"Rejected Transaction: {transaction.TransactionId}, {transaction.TransactionDate}, {transaction.AccountNo}, {transaction.Amount}, {transaction.CurrencyCode}, {transaction.Status}");
                 }
-                _logger.Info("End of rejected transactions.");
                 return null;
             }
 
@@ -211,6 +274,6 @@ namespace Frontend.Pages
                 var response = await client.PostAsJsonAsync("http://localhost:5276/api/Transaction", transactions);
                 response.EnsureSuccessStatusCode();
             }
-        }        
+        }
     }
 }
