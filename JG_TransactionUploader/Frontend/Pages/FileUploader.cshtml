@@ -3,52 +3,129 @@
 @{
     ViewData["Title"] = "File Uploader";
 }
-<div class="text-center">
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .container {
+        margin-top: 50px;
+    }
+
+    .tab-list {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .tab-item {
+        margin: 0 10px;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: #fff;
+    }
+
+        .tab-item:hover {
+            background-color: #0056b3;
+        }
+
+    .tab-content {
+        display: none;
+    }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-control {
+        border-radius: 5px;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 10px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: #fff;
+        cursor: pointer;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+    .transaction-list {
+        list-style-type: none;
+        padding: 0;
+    }
+
+        .transaction-list li {
+            background-color: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+</style>
+<div class="container">
     <div id="tabs">
         <ul class="tab-list">
             <li class="tab-item" onclick="showTab('tab1')">File Uploader</li>
-            <li class="tab-item" onclick="showTab('tab2')">Transaction List</li>
+            <li class="tab-item" onclick="showTab('tab2')">File List</li>
         </ul>
-        <div id="tab1" class="tab-content">
+        <div id="tab1" class="tab-content active">
             <h2>File Uploader</h2>
             <form method="post" enctype="multipart/form-data">
-                <input type="file" id="fileInput" name="file" accept=".csv, .xml" />
-                <button type="submit">Upload</button>
+                <div class="form-group">
+                    <input type="file" id="fileInput" name="file" accept=".csv, .xml" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
             </form>
             <p id="fileInfo">@Model.FileInfo</p>
         </div>
         <div id="tab2" class="tab-content">
             <h2>Transaction List</h2>
-            <form method="post" asp-page-handler="FilterTransactions">
-                <div>
-                    <label for="currencyFilter">Currency:</label>
-                    <select id="currencyFilter" name="SelectedCurrency" asp-for="SelectedCurrency" asp-items="Model.CurrencyOptions">
+            <form method="post" asp-page-handler="FilterTransactions" class="form-inline">
+                <div class="form-group mb-2 mr-2">
+                    <label for="currencyFilter" class="mr-2">Currency:</label>
+                    <select id="currencyFilter" name="SelectedCurrency" asp-for="SelectedCurrency" asp-items="Model.CurrencyOptions" class="form-control">
                         <option value="">Select Currency</option>
                     </select>
                 </div>
-                <div>
-                    <label for="startDate">Start Date:</label>
-                    <input type="date" id="startDate" name="StartDate" asp-for="StartDate" />
+                <div class="form-group mb-2 mr-2">
+                    <label for="startDate" class="mr-2">Start Date:</label>
+                    <input type="date" id="startDate" name="StartDate" asp-for="StartDate" class="form-control" />
                 </div>
-                <div>
-                    <label for="endDate">End Date:</label>
-                    <input type="date" id="endDate" name="EndDate" asp-for="EndDate" />
+                <div class="form-group mb-2 mr-2">
+                    <label for="endDate" class="mr-2">End Date:</label>
+                    <input type="date" id="endDate" name="EndDate" asp-for="EndDate" class="form-control" />
                 </div>
-                <div>
-                    <label for="statusFilter">Status:</label>
-                    <select id="statusFilter" name="SelectedStatus" asp-for="SelectedStatus">
+                <div class="form-group mb-2 mr-2">
+                    <label for="statusFilter" class="mr-2">Status:</label>
+                    <select id="statusFilter" name="SelectedStatus" asp-for="SelectedStatus" class="form-control">
                         <option value="">Select Status</option>
                         <option value="A">Approved (A)</option>
                         <option value="R">Rejected/Failed (R)</option>
                         <option value="D">Done/Finished (D)</option>
                     </select>
                 </div>
-                <button type="submit">Filter</button>
+                <button type="submit" class="btn btn-primary mb-2">Filter</button>
             </form>
-            <ul id="transactionList">
+            <ul id="transactionList" class="transaction-list">
                 @foreach (var transaction in Model.Transactions)
+
                 {
-                    <li>ID: @transaction.TransactionId, Date: @transaction.TransactionDate, Account: @transaction.AccountNo, Amount: @transaction.Amount, Currency: @transaction.CurrencyCode, Status: @transaction.Status</li>
+                    <li>ID: @transaction.TransactionId, Payment: @transaction.Payment, Status: @transaction.MappedStatus</li>
                 }
             </ul>
         </div>
@@ -57,10 +134,15 @@
 <script>
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.style.display = 'none';
+            tab.classList.remove('active');
         });
-        document.getElementById(tabId).style.display = 'block';
+        document.getElementById(tabId).classList.add('active');
+        localStorage.setItem('activeTab', tabId);
     }
 
-    showTab('tab1');
+    document.addEventListener('DOMContentLoaded', (event) => {
+        const activeTab = localStorage.getItem('activeTab') || 'tab1';
+        showTab(activeTab);
+    });
 </script>
+

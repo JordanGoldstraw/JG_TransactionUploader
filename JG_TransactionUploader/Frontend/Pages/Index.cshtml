@@ -3,11 +3,41 @@
 @{
     ViewData["Title"] = "JG Transaction Uploader";
 }
-<div class="text-center">
-    <div id="login-screen">
-        <h1>Login</h1>
-        <button onclick="redirectToFileUploader()">Login</button>
-    </div>
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .login-container {
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .login-container h1 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+    }
+    .login-container button {
+        width: 100%;
+        padding: 10px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: #fff;
+        cursor: pointer;
+    }
+    .login-container button:hover {
+        background-color: #0056b3;
+    }
+</style>
+<div class="login-container text-center">
+    <h1>Login</h1>
+    <button onclick="redirectToFileUploader()">Login</button>
 </div>
 <script>
     function redirectToFileUploader() {
